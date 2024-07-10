@@ -117,6 +117,27 @@ impl Emu {
         op
     }
 
+
+    /// Executes an operation based on the given opcode.
+    ///
+    /// The opcode is a 16-bit unsigned integer. It is split into four parts: digit1, digit2, digit3, and digit4.
+    /// Each digit represents a specific part of the operation.
+    ///
+    /// # Arguments
+    ///
+    /// * `op` - The opcode to execute.
+    fn execute(&mut self, op: u16)
+    {   // Split operation code to four parts
+        let digit1 = (op & 0xF000) >> 12;
+        let digit2 = (op & 0x0F00) >> 8;
+        let digit3 = (op & 0x00F0) >> 4;
+        let digit4 = op & 0x000F;
+
+        match (digit1,digit2,digit3,digit4) { (_, _, _, _) => {
+            unimplemented!("Unimplemented opcode:{}",op)
+        } }
+    }
+
     pub fn tick(&mut self)
     {
         // Fetch value from game at the memory address stored in PC, and load into RAM
@@ -142,4 +163,10 @@ impl Emu {
             self.st -= 1;
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
 }
