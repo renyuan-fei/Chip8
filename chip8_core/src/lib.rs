@@ -1,3 +1,5 @@
+use std::thread::sleep;
+
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
 const RAM_SIZE: usize = 4096;
@@ -78,13 +80,15 @@ impl Emu {
     fn push(&mut self, val: u16)
     {
         self[self.sp as usize] = val;
+
         self.sp += 1;
     }
 
-    fn pop(&mut self)
+    fn pop(&mut self) -> u16
     {
         self.sp -= 1;
-        self.stack[self.sp as usize];
+
+        self.stack[self.sp as usize]
     }
 
     pub fn reset(&mut self)
@@ -133,8 +137,53 @@ impl Emu {
         let digit3 = (op & 0x00F0) >> 4;
         let digit4 = op & 0x000F;
 
-        match (digit1,digit2,digit3,digit4) { (_, _, _, _) => {
-            unimplemented!("Unimplemented opcode:{}",op)
+        match (digit1,digit2,digit3,digit4) {
+            // SKIP VX == VY
+            (5, _, _, 0) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                if self.v_reg[x] == self.v_reg[y] {
+                    self.pc += 2;
+                }
+            }
+            // SKIP VX !- NN
+            (4, _, _, _) => {
+                let x = digit2 as  usize;
+                let nn = (op & 0xFF) as u8;
+                if self.v_reg[x] != nn {
+                    self.pc += 2;
+                }
+            }
+            // SKIP VX == NN
+            (3, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                if self.v_reg[x] == nn {
+                    self.pc += 2;
+                }
+            }
+            // CALL NNN
+            (2, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.push(self.pc);
+                self.pc = nnn;
+            }
+            // JMP NNN
+            (1, _, _, _) => {
+                // move PC to given address
+                let nnn = op & 0xFFF;
+                self.pc = nnn;
+            }
+            // RET
+            (0,0,0xE,0xE) => {
+                let ret_addr = self.pop();
+                self.pc = ret_addr;
+            }
+            // CLS
+            (0,0,0xE,0) => { self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT]}
+            // NOP
+            (0,0,0,0) => return,
+            (_, _, _, _) => { unimplemented!("Unimplemented opcode:{}",op)
         } }
     }
 
