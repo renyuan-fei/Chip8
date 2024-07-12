@@ -57,8 +57,7 @@ pub struct Emu {
 
 impl Emu {
     pub fn new() -> Self {
-
-        let mut new_emu  = Self {
+        let mut new_emu = Self {
             pc: START_ADDR,
             ram: [0; RAM_SIZE],
             screen: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
@@ -79,7 +78,7 @@ impl Emu {
 
     fn push(&mut self, val: u16)
     {
-        self[self.sp as usize] = val;
+        self.stack[self.sp as usize] = val;
 
         self.sp += 1;
     }
@@ -106,6 +105,18 @@ impl Emu {
         self.ram[..FONTSET_SIZE].copy_from_slice(&FONTSET);
     }
 
+    /// Fetches the operation code (op) from the memory.
+    ///
+    /// # Returns
+    ///
+    /// Returns a 16-bit unsigned integer representing the operation code.
+    ///
+    /// # Remarks
+    ///
+    /// This function fetches the higher byte and lower byte from the memory, and combines them to form the complete instruction.
+    /// It then increments the program counter (pc) by 2 to point to the next instruction.
+    ///
+    /// The fetched operation code (op) is returned.
     fn fetch(&mut self) -> u16
     {
         // Fetch operation code(2 bytes)
@@ -131,13 +142,112 @@ impl Emu {
     ///
     /// * `op` - The opcode to execute.
     fn execute(&mut self, op: u16)
-    {   // Split operation code to four parts
+    {
+        // Split operation code to four parts
         let digit1 = (op & 0xF000) >> 12;
         let digit2 = (op & 0x0F00) >> 8;
         let digit3 = (op & 0x00F0) >> 4;
         let digit4 = op & 0x000F;
 
-        match (digit1,digit2,digit3,digit4) {
+        match (digit1, digit2, digit3, digit4) {
+            // SKIP VX != VY
+            (9, _, _, 0) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                if self.v_reg[x] != self.v_reg[y] {
+                    self.pc += 2;
+                }
+            }
+            // VX <<= 1
+            (8, _, _, 0xE) => {
+                let x = digit2 as usize;
+
+                // The variable `msb` stands for "most significant bit", which is the highest bit in a series of numbers in binary notation.
+                // In this context, it's the highest bit in the actual byte of the value in `self.v_reg[x]`. 
+                // The operation `(self.v_reg[x] >> 7)` moves the bits of `self.v_reg[x]` seven places to the right.
+                // Essentially, the highest bit (the most significant bit) is moved to the lowest bit (the least significant bit) position.
+                // The bitwise AND operation `& 1` then retrieves the value of this least significant bit (which is our `msb`).
+                let msb = (self.v_reg[x] >> 7) & 1;
+
+                self.v_reg[x] <<= 1;
+                self.v_reg[0xF] = msb;
+            }
+            // VX = VY - VX
+            (8, _, _, 7) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+
+                let (new_vx, borrow) = self.v_reg[y].overflowing_sub(self.v_reg[x]);
+                let new_vf = if borrow { 0 } else { 1 };
+
+                self.v_reg[x] = new_vx;
+                self.v_reg[0xF] = new_vf;
+            }
+            // VX >>= 1
+            (8, _, _, 6) => {
+                let x = digit2 as usize;
+
+                // The variable `lsb` is short for "Least Significant Bit". 
+                // In the context of binary numbers, the least significant bit is the bit position in a binary integer giving the 
+                // units value, that is, determining whether the number is even or odd. It is the bit at the far right of the bit string.
+                // Here in the code, the least significant bit of the value in v_reg[x] is being determined using bitwise 'AND' operator with 1.
+                // '& 1' helps in identifying whether v_reg[x] is even or odd, this operation will result in 1 if the number (in our case v_reg[x]) is odd.
+                let lsb = self.v_reg[x] & 1;
+                self.v_reg[x] >>= 1;
+                self.v_reg[0xF] = lsb
+            }
+            // VX -= VY
+            (8, _, _, 5) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+
+                let (new_vx, borrow) = self.v_reg[x].overflowing_sub(self.v_reg[y]);
+                let new_vf = if borrow { 0 } else { 1 };
+
+                self.v_reg[x] = new_vx;
+                self.v_reg[0xF] = new_vf;
+            }
+            // VX += VY
+            (8, _, _, 4) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+
+                let (new_vx, carry) = self.v_reg[x].overflowing_add(self.v_reg[y]);
+                let new_vy = if carry { 1 } else { 0 };
+
+                self.v_reg[x] = new_vx;
+
+                // Here, 0xF (15 in decimal) is used as an index to access the 16th element of the `v_reg` array.
+                // This is because CHIP-8, the architecture that our emulator is mimicking, uses a total of 16 registers (from V0 to VF).
+                // The last register, VF (which corresponds to `v_reg[0xF]` in our case), is used as the carry flag in arithmetic operations.
+                // This special register (VF) stores the overflow bit resulting from arithmetic operations, acting as a flag for the next instruction if needed.
+                // In this specific instruction `(8, _, _, 4) => {}`, if the addition of Vx and Vy results in an overflow, the VF register is set to 1. Otherwise, it is set to 0.
+                self.v_reg[0xF] = new_vy;
+            }
+            // VX |= VY
+            (8, _, _, 1) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                self.v_reg[x] |= self.v_reg[y];
+            }
+            // VX = VY
+            (8, _, _, 0) => {
+                let x = digit2 as usize;
+                let y = digit3 as usize;
+                self.v_reg[x] = self.v_reg[y];
+            }
+            // VX += NN
+            (7, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                self.v_reg[x] = self.v_reg[x].wrapping_add(nn);
+            }
+            // VX = NN
+            (6, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                self.v_reg[x] = nn;
+            }
             // SKIP VX == VY
             (5, _, _, 0) => {
                 let x = digit2 as usize;
@@ -146,9 +256,9 @@ impl Emu {
                     self.pc += 2;
                 }
             }
-            // SKIP VX !- NN
+            // SKIP VX != NN
             (4, _, _, _) => {
-                let x = digit2 as  usize;
+                let x = digit2 as usize;
                 let nn = (op & 0xFF) as u8;
                 if self.v_reg[x] != nn {
                     self.pc += 2;
@@ -175,18 +285,21 @@ impl Emu {
                 self.pc = nnn;
             }
             // RET
-            (0,0,0xE,0xE) => {
+            (0, 0, 0xE, 0xE) => {
                 let ret_addr = self.pop();
                 self.pc = ret_addr;
             }
             // CLS
-            (0,0,0xE,0) => { self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT]}
+            (0, 0, 0xE, 0) => { self.screen = [false; SCREEN_WIDTH * SCREEN_HEIGHT] }
             // NOP
-            (0,0,0,0) => return,
-            (_, _, _, _) => { unimplemented!("Unimplemented opcode:{}",op)
-        } }
+            (0, 0, 0, 0) => return,
+            (_, _, _, _) => {
+                unimplemented!("Unimplemented opcode:{}", op)
+            }
+        }
     }
 
+    /// Executes a single instruction in the game.
     pub fn tick(&mut self)
     {
         // Fetch value from game at the memory address stored in PC, and load into RAM
@@ -199,6 +312,7 @@ impl Emu {
         // Move PC to next instruction
     }
 
+    /// Tick the timers to update their values.
     pub fn tick_timers(&mut self)
     {
         if self.dt > 0 {
@@ -215,7 +329,4 @@ impl Emu {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-}
+mod tests {}
