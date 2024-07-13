@@ -1,4 +1,4 @@
-use std::thread::sleep;
+use rand::random;
 
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
@@ -150,6 +150,69 @@ impl Emu {
         let digit4 = op & 0x000F;
 
         match (digit1, digit2, digit3, digit4) {
+            // DRAW
+            (0xD, _, _, _) => {
+                // Get the (x, y) coords for our sprite
+                let x_coord = self.v_reg[digit2 as usize] as u16;
+                let y_coord = self.v_reg[digit3 as usize] as u16;
+
+                // The lst digital determines how many rows high our sprite is
+                let num_rows = digit4;
+
+                // Keep track if any pixels were flipped
+                let mut flipped = false;
+
+                // Iterate over each row of our sprite
+                for y_line in 0..num_rows {
+
+                    // Determine which memory address our row's data is stored
+                    let addr = self.i_reg + y_line;
+                    let pixels = self.ram[addr as usize];
+
+                    // Iterate over each column in our row
+                    for x_line in 0..8
+                    {
+                        // User a mask to fetch current pixel's bit. Only flip if a 1
+                        if (pixels & (0b1000_0000 >> x_line)) != 0
+                        {
+                            // Sprites should wrap around screen. so apply modulo
+                            let x = (x_coord + x_line) as usize % SCREEN_WIDTH;
+                            let y = (y_coord + y_line) as usize % SCREEN_HEIGHT;
+
+                            // Get our pixel's index for our 1D screen array
+                            let idx = x + SCREEN_WIDTH * y;
+
+                            // Check if we're about to flip the pixel and set
+                            flipped |= self.screen[idx];
+                            self.screen[idx] ^= true;
+                        }
+                    }
+                }
+
+                // Populate CF register
+                if flipped {
+                    self.v_reg[0xF] = 1;
+                } else {
+                    self.v_reg[0xF] = 0;
+                }
+            }
+            // VX = rand() & NN
+            (0xC, _, _, _) => {
+                let x = digit2 as usize;
+                let nn = (op & 0xFF) as u8;
+                let rng: u8 = random();
+                self.v_reg[x] = rng & nn;
+            }
+            // JMP V0 + NNN
+            (0xB, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.pc = (self.v_reg[0] as u16) + nnn;
+            }
+            // I = NNN
+            (0xA, _, _, _) => {
+                let nnn = op & 0xFFF;
+                self.i_reg = nnn;
+            }
             // SKIP VX != VY
             (9, _, _, 0) => {
                 let x = digit2 as usize;
@@ -163,7 +226,7 @@ impl Emu {
                 let x = digit2 as usize;
 
                 // The variable `msb` stands for "most significant bit", which is the highest bit in a series of numbers in binary notation.
-                // In this context, it's the highest bit in the actual byte of the value in `self.v_reg[x]`. 
+                // In this context, it's the highest bit in the actual byte of the value in `self.v_reg[x]`.
                 // The operation `(self.v_reg[x] >> 7)` moves the bits of `self.v_reg[x]` seven places to the right.
                 // Essentially, the highest bit (the most significant bit) is moved to the lowest bit (the least significant bit) position.
                 // The bitwise AND operation `& 1` then retrieves the value of this least significant bit (which is our `msb`).
@@ -187,8 +250,8 @@ impl Emu {
             (8, _, _, 6) => {
                 let x = digit2 as usize;
 
-                // The variable `lsb` is short for "Least Significant Bit". 
-                // In the context of binary numbers, the least significant bit is the bit position in a binary integer giving the 
+                // The variable `lsb` is short for "Least Significant Bit".
+                // In the context of binary numbers, the least significant bit is the bit position in a binary integer giving the
                 // units value, that is, determining whether the number is even or odd. It is the bit at the far right of the bit string.
                 // Here in the code, the least significant bit of the value in v_reg[x] is being determined using bitwise 'AND' operator with 1.
                 // '& 1' helps in identifying whether v_reg[x] is even or odd, this operation will result in 1 if the number (in our case v_reg[x]) is odd.
