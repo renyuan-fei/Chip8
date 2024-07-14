@@ -150,6 +150,68 @@ impl Emu {
         let digit4 = op & 0x000F;
 
         match (digit1, digit2, digit3, digit4) {
+            // I = FONT
+            (0xF, _ , 2, 9) => {
+                let x = digit2 as usize;
+                let c = self.v_reg[x] as u16;
+                // character's size is 5 * RAM address
+                self.i_reg = c * 5
+            }
+            // I += VX
+            (0xF, _, 1, 0xE) => {
+                let x  = digit2 as usize;
+                let vx = self.v_reg[x] as u16;
+                self.i_reg = self.i_reg.wrapping_add(vx);
+            },
+            // ST = VX
+            (0xF, _, 1, 8) => {
+                let x = digit2 as usize;
+                self.st = self.v_reg[x];
+            },
+            // DT = VT
+            (0xF, _, 1, 5) => {
+                let x = digit2 as usize;
+                self.dt = self.v_reg[x];
+            }
+            // WAIT KEY
+            (0xF, _, 0, 0xA) => {
+                let x = digit2 as usize;
+                let mut pressed = false;
+
+                // check v registers
+                // if any key is pressed and that register will be true
+                // the program will be continuously
+                for i in 0..self.keys.len() {
+                    if self.keys[i] {
+                        self.v_reg[x] = i as u8;
+                        pressed = true;
+                        break;
+                    }
+                }
+
+                // if not pressed, redo operation code again until pressed
+                if !pressed {
+                    self.pc -= 2;
+                }
+            }
+            (0xF, _, 0, 7) => {
+                let x = digit2 as usize;
+                self.v_reg[x] = self.dt;
+            }
+            // SKIP KEY RELEASE
+            (0xE, _, 0xA, 1) => {
+                let x = digit2 as usize;
+                self.v_reg[x as usize] = self.dt;
+            }
+            // SKIP KEY PRESS
+            (0xE, _, 9, 0xE) => {
+                let x = digit2 as usize;
+                let vx = self.v_reg[x];
+                let key = self.keys[vx as usize];
+                if key {
+                    self.pc += 2
+                }
+            }
             // DRAW
             (0xD, _, _, _) => {
                 // Get the (x, y) coords for our sprite
