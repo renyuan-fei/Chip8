@@ -150,8 +150,40 @@ impl Emu {
         let digit4 = op & 0x000F;
 
         match (digit1, digit2, digit3, digit4) {
+            // LOAD V0 to VX
+            (0xF, _, 6, 5) => {
+                let x = digit2 as usize;
+                let i = self.i_reg as usize;
+                for idx in 0..=x {
+                    self.v_reg[idx] = self.ram[i + idx];
+                }
+            }
+            // STORE V0 to VX
+            (0xF, _, 5, 5) => {
+                let x = digit2 as usize;
+                let i = self.i_reg as usize;
+                for idx in 0..=x {
+                    self.ram[i + idx] = self.v_reg[idx];
+                }
+            }
+            // BCD(Binary convert to Decimal)
+            (0xF, _, 3, 3) => {
+                let x = digit2 as usize;
+                let vx = self.v_reg[x] as f32;
+
+                // Fetch the hundreds digit by dividing by 100 and tossing the decimal
+                let hundreds = (vx / 100.0).floor() as u8;
+                // Fetch the tens digit by dividing by 10, tossing the ones digit and the decimal
+                let tens = ((vx / 10.0) % 10.0).floor() as u8;
+                // Fetch the one digit by tossing the hundreds and the tens
+                let ones = (vx % 10.0).floor() as u8;
+
+                self.ram[self.i_reg as usize] = hundreds;
+                self.ram[(self.i_reg + 1) as usize] = tens;
+                self.ram[(self.i_reg + 2) as usize] = ones;
+            }
             // I = FONT
-            (0xF, _ , 2, 9) => {
+            (0xF, _, 2, 9) => {
                 let x = digit2 as usize;
                 let c = self.v_reg[x] as u16;
                 // character's size is 5 * RAM address
@@ -159,15 +191,15 @@ impl Emu {
             }
             // I += VX
             (0xF, _, 1, 0xE) => {
-                let x  = digit2 as usize;
+                let x = digit2 as usize;
                 let vx = self.v_reg[x] as u16;
                 self.i_reg = self.i_reg.wrapping_add(vx);
-            },
+            }
             // ST = VX
             (0xF, _, 1, 8) => {
                 let x = digit2 as usize;
                 self.st = self.v_reg[x];
-            },
+            }
             // DT = VT
             (0xF, _, 1, 5) => {
                 let x = digit2 as usize;
