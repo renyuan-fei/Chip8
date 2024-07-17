@@ -1,5 +1,7 @@
 use chip8_core::*;
 use std::env;
+use std::fs::File;
+use std::io::Read;
 use sdl2::event::Event;
 
 const SCALE: u32 = 15;
@@ -52,6 +54,13 @@ fn main() {
     // Should use poll_iter to get all available events
     let mut event_pump = sdl_context.event_pump().unwrap();
     
+    let mut chip8 = Emu::new();
+    
+    // read data from file and load into Emu
+    let mut rom = File::open(&args[1]).expect("Unable to open file");
+    let mut buffer  = Vec::new();
+    rom.read_to_end(&mut buffer).unwrap();
+    chip8.load(&buffer);
     
     // ‘gameloop is a loop label， it can let us easy to break the specific loop
     'gameloop: loop {
