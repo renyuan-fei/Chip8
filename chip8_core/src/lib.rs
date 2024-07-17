@@ -89,23 +89,23 @@ impl Emu {
 
         self.stack[self.sp as usize]
     }
-    
+
     // return the array of display
     pub fn get_display(&self) -> &[bool] {
         &self.screen
     }
-    
+
     // handle key press
     pub fn keypress(&mut self, idx:usize, pressed: bool) {
         // set pressed key to true
-        self.keys[idx] = pressed;   
+        self.keys[idx] = pressed;
     }
-    
+
     // load game code from file into our RAM
     pub fn load(&mut self, data: &[u8]) {
         let start = START_ADDR as usize;
         let end = (START_ADDR as usize) + data.len();
-        
+
         self.ram[start..end].copy_from_slice(data);
     }
 
