@@ -96,7 +96,7 @@ impl Emu {
     }
 
     // handle key press
-    pub fn keypress(&mut self, idx:usize, pressed: bool) {
+    pub fn keypress(&mut self, idx: usize, pressed: bool) {
         // set pressed key to true
         self.keys[idx] = pressed;
     }
@@ -151,6 +151,32 @@ impl Emu {
         op
     }
 
+    /// Executes a single instruction in the game.
+    pub fn tick(&mut self)
+    {
+        // Fetch value from game at the memory address stored in PC, and load into RAM
+        let op = self.fetch();
+
+        // Decode instruction
+        // Execute
+        // Move PC to next instruction
+        self.execute(op);
+    }
+
+    /// Tick the timers to update their values.
+    pub fn tick_timers(&mut self)
+    {
+        if self.dt > 0 {
+            self.dt -= 1
+        }
+
+        if self.dt > 0 {
+            if self.st == 1 {
+                // 'BEEP' noise
+            }
+            self.st -= 1;
+        }
+    }
 
     /// Executes an operation based on the given opcode.
     ///
@@ -472,34 +498,6 @@ impl Emu {
             (_, _, _, _) => {
                 unimplemented!("Unimplemented opcode:{}", op)
             }
-        }
-    }
-
-    /// Executes a single instruction in the game.
-    pub fn tick(&mut self)
-    {
-        // Fetch value from game at the memory address stored in PC, and load into RAM
-        let op = self.fetch();
-
-        // Decode instruction
-
-        // Execute
-
-        // Move PC to next instruction
-    }
-
-    /// Tick the timers to update their values.
-    pub fn tick_timers(&mut self)
-    {
-        if self.dt > 0 {
-            self.dt -= 1
-        }
-
-        if self.dt > 0 {
-            if self.st == 1 {
-                // 'BEEP' noise
-            }
-            self.st -= 1;
         }
     }
 }
