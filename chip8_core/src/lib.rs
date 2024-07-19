@@ -501,6 +501,3 @@ impl Emu {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {}
