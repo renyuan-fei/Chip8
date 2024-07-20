@@ -2,6 +2,7 @@
 name = "desktop"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 chip8_core = {path = "../chip8_core"}

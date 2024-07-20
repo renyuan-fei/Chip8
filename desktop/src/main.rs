@@ -3,6 +3,7 @@ use std::env;
 use std::fs::File;
 use std::io::Read;
 use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
@@ -38,14 +39,36 @@ fn draw_screen(emu: &Emu, canvas: &mut Canvas<Window>)
     canvas.present();
 }
 
+fn key2btn(key: Keycode) -> Option<usize> {
+    match key {
+        Keycode::Num1 => Some(0x1),
+        Keycode::Num2 => Some(0x2),
+        Keycode::Num3 => Some(0x3),
+        Keycode::Num4 => Some(0xC),
+        Keycode::Q => Some(0x4),
+        Keycode::W => Some(0x5),
+        Keycode::E => Some(0x6),
+        Keycode::R => Some(0xD),
+        Keycode::A => Some(0x8),
+        Keycode::S => Some(0x7),
+        Keycode::D => Some(0x9),
+        Keycode::F => Some(0xE),
+        Keycode::Z => Some(0xA),
+        Keycode::X => Some(0x0),
+        Keycode::C => Some(0xB),
+        Keycode::V => Some(0xF),
+        _ => None,
+    }
+}
+
 fn main() {
     // _ means that type of Vector is not sure
     // it depends on the type of the arguments
     let args: Vec<_> = env::args().collect();
-    
-    if args.len() != 2 { 
+
+    if args.len() != 2 {
         println!("Usage: cargo run path/to/game");
-        return; 
+        return;
     }
 
     // Start the SDL2 context. This is a handle to the library's functionality.
@@ -83,26 +106,36 @@ fn main() {
     // SDL provides this method to poll for events every loop.
     // Should use poll_iter to get all available events
     let mut event_pump = sdl_context.event_pump().unwrap();
-    
+
     let mut chip8 = Emu::new();
-    
+
     // read data from file and load into Emu
     let mut rom = File::open(&args[1]).expect("Unable to open file");
-    let mut buffer  = Vec::new();
+    let mut buffer = Vec::new();
     rom.read_to_end(&mut buffer).unwrap();
     chip8.load(&buffer);
-    
+
     // ‘gameloop is a loop label， it can let us easy to break the specific loop
     'gameloop: loop {
-        
+
         // Iterate over all available events, processing each one.
         for evt in event_pump.poll_iter() {
             // Use a match expression to handle different types of events.
             match evt {
-                Event::Quit {..} => {
+                Event::Quit { .. } | Event::KeyDown {keycode : Some(Keycode::Escape), ..} => {
                     // In the here, we can break specific loop by loop label 'gameloop
                     break 'gameloop;
                 },
+                Event::KeyDown {keycode: Some(key), .. } => {
+                    if let Some(k) = key2btn(key) {
+                        chip8.keypress(k,true);
+                    }
+                }
+                Event::KeyUp {keycode: Some(key), ..} => {
+                    if let Some(k) = key2btn(key) {
+                        chip8.keypress(k,false);
+                    }
+                }
                 // For all other types of events, we don't do anything and just continue looping.
                 _ => ()
             }
