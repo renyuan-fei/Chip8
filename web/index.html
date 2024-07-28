@@ -3,15 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <title>Chip-8 Emulator</title>
+    <link rel="stylesheet" type="text/css" href="index.css">
 </head>
 <body>
-<h1>
-    Chip-8 Emulator
-</h1>
-<label for="fileInput"></label>
-<input type="file" id="fileInput" autocomplete="off">
-<br>
-<canvas id="canvas">If you see this message, then your browser doesn't support HTML5</canvas>
+<div class='container'>
+    <h2>CHIP-8</h2>
+
+    <p>A WebAssembly CHIP-8 emulator written using Rust</p>
+
+    <span class='label'>ROM:</span>
+
+    <label for='roms'></label>
+    <select id='roms'>
+    </select>
+
+    <button id='start'>Start</button>
+    <button id='stop'>Stop</button>
+    <button id='restart'>Restart</button>
+
+    <div class='screen'>
+        <canvas id='canvas'></canvas>
+    </div>
+
+    <div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
+</div>
 </body>
 <script type="module" src="index.js"></script>
 </html>

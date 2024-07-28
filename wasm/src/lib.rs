@@ -17,12 +17,17 @@ impl EmuWasm {
         let chip8 = Emu::new();
         
         let document = web_sys::window().unwrap().document().unwrap();
+        
+        // get element
         let canvas = document.get_element_by_id("canvas").unwrap();
+        
+        // translate element to canvas
         let canvas: HtmlCanvasElement = canvas
             .dyn_into::<HtmlCanvasElement>()
             .map_err(|_| ())
             .unwrap();
         
+        // translate canvas to canvas2D
         let ctx = canvas.get_context("2d")
             .unwrap()
             .unwrap()
